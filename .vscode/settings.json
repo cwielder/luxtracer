@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.asm": "asm-intel-x86-generic",
+        "*.fsh": "glsl",
+        "*.vsh": "glsl",
+        "iterator": "cpp"
+    }
+}

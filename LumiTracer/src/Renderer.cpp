@@ -16,6 +16,24 @@ namespace {
 
 		return (a << 24) | (b << 16) | (g << 8) | r;
 	}
+
+	static glm::u32 hashPCG(const glm::u32 input) {
+		const glm::u32 state = input * 747796405U + 2891336453U, word = ((state >> ((state >> 28U) + 4U)) ^ state) * 277803737U;
+		return (word >> 22U) ^ word;
+	}
+
+	static glm::f32 randF32(glm::u32& seed) {
+		seed = hashPCG(seed);
+		return static_cast<glm::f32>(seed) / static_cast<glm::f32>(std::numeric_limits<glm::u32>::max());
+	}
+
+	static glm::vec3 randV3(glm::u32& seed, const glm::f32 min, const glm::f32 max) {
+		return glm::vec3(randF32(seed) * (max - min) + min, randF32(seed) * (max - min) + min, randF32(seed) * (max - min) + min);
+	}
+
+	static glm::vec3 randV3Unit(glm::u32& seed) {
+		return glm::normalize(randV3(seed, -1.0f, 1.0f));
+	}
 }
 
 Renderer::Renderer()
@@ -38,7 +56,7 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 	}
 
 	if (!mFinalImage) {
-		mFinalImage = std::make_shared<Walnut::Image>(viewport.x, viewport.y, Walnut::ImageFormat::RGBA);
+		mFinalImage = std::make_unique<Walnut::Image>(viewport.x, viewport.y, Walnut::ImageFormat::RGBA);
 	}
 	
 	if (!mFinalImageData || !mAccumulationData || mFinalImage->GetWidth() != viewport.x || mFinalImage->GetHeight() != viewport.y) {
@@ -48,16 +66,10 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		delete[] mAccumulationData;
 		mAccumulationData = new glm::vec4[viewport.x * viewport.y];
 
-		mHorizIter.resize(viewport.x);
-		mVertIter.resize(viewport.y);
-
-		for (std::uint_fast32_t i = 0; i < viewport.x; i++) {
-			mHorizIter[i] = i;
-		}
-
-		for (std::uint_fast32_t i = 0; i < viewport.y; i++) {
-			mVertIter[i] = i;
-		}
+		mHorizIterBegin = CounterIterator(0);
+		mHorizIterEnd = CounterIterator(viewport.x);
+		mVertIterBegin = CounterIterator(0);
+		mVertIterEnd = CounterIterator(viewport.y);
 	}
 
 	std::cout << "Shading " << viewport.x * viewport.y << " pixels" << std::endl;
@@ -66,8 +78,8 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		std::memset(mAccumulationData, 0, viewport.x * viewport.y * sizeof(glm::vec4));
 	}
 
-	std::for_each(std::execution::par, mVertIter.begin(), mVertIter.end(), [this, viewport](const glm::u32 y) {
-		std::for_each(mHorizIter.begin(), mHorizIter.end(), [this, y, viewport](const glm::u32 x) {
+	std::for_each(std::execution::par, mVertIterBegin, mVertIterEnd, [this, viewport](const glm::u32 y) {
+		std::for_each(mHorizIterBegin, mHorizIterEnd, [this, y, viewport](const glm::u32 x) {
 			glm::vec4 color = this->PerPixel(x, y);
 
 			const glm::u32 pixelIndex = x + y * viewport.x;
@@ -89,16 +101,20 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 	mActiveCamera = nullptr;
 }
 
-glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_t y) const {
+glm::vec4 Renderer::PerPixel(const glm::u32 x, const glm::u32 y) const {
 	Ray ray = {
 		.origin = mActiveCamera->GetPosition(),
 		.direction = mActiveCamera->GetRayDirections()[x + y * mActiveCamera->GetViewport().x]
 	};
 	
+	glm::u32 seed = (x + y * mActiveCamera->GetViewport().x) * mAccumulationFrames;
+
 	glm::vec3 pathAccumulation = glm::vec3(0.0f);
 	glm::f32 multiplier = 1.0f;
 
 	for (int i = 0; i < 5; i++) {
+		seed += i;
+
 		Renderer::HitPayload payload = TraceRay(ray);
 		if (payload.hitDistance < 0.0f) {
 			glm::vec3 skyColor = glm::vec3(0.6f, 0.7f, 0.9f);
@@ -117,7 +133,7 @@ glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_
 
 		multiplier *= 0.7f;
 
-		const glm::vec3 microfacetAngle = material.roughness * Walnut::Random::Vec3(-0.5f, 0.5f);
+		const glm::vec3 microfacetAngle = material.roughness * randV3(seed, -0.5f, 0.5f);
 
 		ray.origin = payload.worldPosition + payload.worldNormal * 0.0001f;
 		ray.direction = glm::reflect(ray.direction, payload.worldNormal + microfacetAngle);
