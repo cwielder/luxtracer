@@ -15,14 +15,14 @@ Camera::Camera(glm::f32 verticalFOV, glm::f32 nearClip, glm::f32 farClip)
 	mPosition = glm::vec3(0, 0, 3);
 }
 
-void Camera::OnUpdate(glm::f32 ts) {
+bool Camera::OnUpdate(glm::f32 ts) {
 	glm::vec2 mousePos = Walnut::Input::GetMousePosition();
 	glm::vec2 delta = (mousePos - mLastMousePosition) * mSensitivity;
 	mLastMousePosition = mousePos;
 
 	if (!Walnut::Input::IsMouseButtonDown(Walnut::MouseButton::Right)) {
 		Walnut::Input::SetCursorMode(Walnut::CursorMode::Normal);
-		return;
+		return false;
 	}
 
 	Walnut::Input::SetCursorMode(Walnut::CursorMode::Locked);
@@ -72,6 +72,8 @@ void Camera::OnUpdate(glm::f32 ts) {
 		this->RecalculateView();
 		this->RecalculateRayDirections();
 	}
+
+	return moved;
 }
 
 void Camera::OnResize(glm::u32 width, glm::u32 height) {

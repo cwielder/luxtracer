@@ -35,31 +35,50 @@ public:
 
 		mCamera.SetSensitivity(0.004f);
 
-		mScene.spheres.push_back({
-			.position = glm::vec3(0.0f, 0.0f, 0.0f),
-			.radius = 0.5f,
-			.material = {
-				.albedo = glm::vec3(0, 1, 1)
-			}
+		mScene.materials.push_back({
+			.albedo = glm::vec3(1, 1, 1),
+			.roughness = 1.0f,
+			.metallic = 0.0f
+		});
+
+		mScene.materials.push_back({
+			.albedo = glm::vec3(1, 0.5f, 0.5f),
+			.roughness = 1.0f,
+			.metallic = 0.0f
 		});
 
 		mScene.spheres.push_back({
-			.position = glm::vec3(2.0f, 0.0f, -5.0f),
+			.position = glm::vec3(0.0f, -101.0f, 0.0f),
+			.radius = 100.0f,
+			.materialIndex = 0
+		});
+
+		mScene.spheres.push_back({
+			.position = glm::vec3(2.0f, -0.5f, -5.0f),
 			.radius = 0.75f,
-			.material = {
-				.albedo = glm::vec3(1, 0.5f, 0.5f)
-			}
+			.materialIndex = 1
 		});
 	}
 
 	void OnUpdate(glm::f32 ts) override {
-		mCamera.OnUpdate(ts);
+		bool cameraMoved = mCamera.OnUpdate(ts);
+
+		if (cameraMoved) {
+			mRenderer.ResetAccumulationFrames();
+		}
 	}
 
 	void OnUIRender() override {
-		if (ImGui::Begin("Information")) {
+		if (ImGui::Begin("Overview")) {
 			if (mLastRenderTime != -1.0f) {
 				ImGui::Text("Frametime: %fms", mLastRenderTime);
+			}
+
+			ImGui::Text("Accumulation: %i frames", mRenderer.GetAccumulationFrames());
+
+			ImGui::SameLine();
+			if (ImGui::Button("Reset")) {
+				mRenderer.ResetAccumulationFrames();
 			}
 		} ImGui::End();
 
@@ -72,9 +91,26 @@ public:
 				Sphere& sphere = mScene.spheres[i];
 				ImGui::DragFloat3("Position", glm::value_ptr(sphere.position), 0.1f);
 				ImGui::DragFloat("Radius", &sphere.radius, 0.1f);
-				ImGui::ColorEdit3("Albedo", glm::value_ptr(sphere.material.albedo));
+				ImGui::InputInt("Material", &sphere.materialIndex, 1, 1);
 				
 				if (i != mScene.spheres.size() - 1) {
+					ImGui::Separator();
+				}
+
+				ImGui::PopID();
+			}
+			ImGui::Unindent();
+			ImGui::Text("Materials:");
+			ImGui::Indent();
+			for (int i = 0; i < mScene.materials.size(); i++) {
+				ImGui::PushID(i);
+
+				Material& material = mScene.materials[i];
+				ImGui::ColorEdit3("Albedo", glm::value_ptr(material.albedo));
+				ImGui::SliderFloat("Roughness", &material.roughness, 0.0f, 1.0f);
+				ImGui::SliderFloat("Metallic", &material.metallic, 0.0f, 1.0f);
+
+				if (i != mScene.materials.size() - 1) {
 					ImGui::Separator();
 				}
 

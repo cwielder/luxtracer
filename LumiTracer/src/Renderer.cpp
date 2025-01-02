@@ -18,11 +18,13 @@ namespace {
 }
 
 Renderer::Renderer()
-    : mFinalImage()
-    , mFinalImageData(nullptr)
-{
-    
-}
+	: mActiveScene(nullptr)
+	, mActiveCamera(nullptr)
+	, mFinalImage()
+	, mFinalImageData(nullptr)
+	, mAccumulationData(nullptr)
+	, mAccumulationFrames(1)
+{ }
 
 void Renderer::Render(const Scene& scene, const Camera& camera) {
 	mActiveScene = &scene;
@@ -38,25 +40,40 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		mFinalImage = std::make_shared<Walnut::Image>(viewport.x, viewport.y, Walnut::ImageFormat::RGBA);
 	}
 	
-	if (mFinalImage->GetWidth() != viewport.x || mFinalImage->GetWidth() != viewport.y) {
+	if (!mFinalImageData || !mAccumulationData || mFinalImage->GetWidth() != viewport.x || mFinalImage->GetHeight() != viewport.y) {
 		mFinalImage->Resize(viewport.x, viewport.y);
 		delete[] mFinalImageData;
 		mFinalImageData = new glm::u32[viewport.x * viewport.y];
+		delete[] mAccumulationData;
+		mAccumulationData = new glm::vec4[viewport.x * viewport.y];
 	}
 
 	std::cout << "Shading " << viewport.x * viewport.y << " pixels" << std::endl;
 
+	if (mAccumulationFrames == 1) {
+		std::memset(mAccumulationData, 0, viewport.x * viewport.y * sizeof(glm::vec4));
+	}
+
 	using i_t = std::int_fast32_t;
 	#pragma omp parallel for schedule(dynamic, 1) num_threads(8)
-	for (std::int_fast32_t y = 0; y < static_cast<i_t>(viewport.y); y++) {
-		for (std::int_fast32_t x = 0; x < static_cast<i_t>(viewport.x); x++) {
+	for (i_t y = 0; y < static_cast<i_t>(viewport.y); y++) {
+		for (i_t x = 0; x < static_cast<i_t>(viewport.x); x++) {
 			glm::vec4 color = this->PerPixel(x, y);
-			color = glm::clamp(color, { 0.0f }, { 1.0f });
-			mFinalImageData[x + y * viewport.x] = convertToRGBA(color);
+
+			const glm::u32 pixelIndex = x + y * viewport.x;
+
+			mAccumulationData[pixelIndex] += color;
+
+			glm::vec4 accumulation = mAccumulationData[pixelIndex];
+
+			color = glm::clamp(mAccumulationData[pixelIndex] / static_cast<glm::f32>(mAccumulationFrames), { 0.0f }, { 1.0f });
+			mFinalImageData[pixelIndex] = convertToRGBA(color);
 		}
 	}
 
 	mFinalImage->SetData(mFinalImageData);
+
+	mAccumulationFrames++;
 
 	mActiveScene = nullptr;
 	mActiveCamera = nullptr;
@@ -68,22 +85,35 @@ glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_
 		.direction = mActiveCamera->GetRayDirections()[x + y * mActiveCamera->GetViewport().x]
 	};
 	
-	glm::vec3 accumulation = glm::vec3(0.0f);
-	for (int i = 0; i < 1; i++) {
-		const HitPayload payload = this->TraceRay(ray);
+	glm::vec3 pathAccumulation = glm::vec3(0.0f);
+	glm::f32 multiplier = 1.0f;
 
+	for (int i = 0; i < 5; i++) {
+		Renderer::HitPayload payload = TraceRay(ray);
 		if (payload.hitDistance < 0.0f) {
+			glm::vec3 skyColor = glm::vec3(0.6f, 0.7f, 0.9f);
+			pathAccumulation += skyColor * multiplier;
 			break;
 		}
 
-		glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
-		glm::f32 lightIntensity = glm::max(glm::dot(payload.worldNormal, -lightDir), 0.0f);
+		const glm::vec3 lightDir = glm::normalize(glm::vec3(-1, -1, -1));
+		glm::f32 lightIntensity = glm::max(glm::dot(payload.worldNormal, -lightDir), 0.0f); // == cos(angle)
 
-		const Material& material = mActiveScene->spheres[payload.objectIndex].material;
-		accumulation += material.albedo * lightIntensity;
+		const Sphere& sphere = mActiveScene->spheres[payload.objectIndex];
+		const Material& material = mActiveScene->materials[sphere.materialIndex];
+		glm::vec3 sphereColor = material.albedo;
+		sphereColor *= lightIntensity;
+		pathAccumulation += sphereColor * multiplier;
+
+		multiplier *= 0.7f;
+
+		const glm::vec3 microfacetAngle = material.roughness * Walnut::Random::Vec3(-0.5f, 0.5f);
+
+		ray.origin = payload.worldPosition + payload.worldNormal * 0.0001f;
+		ray.direction = glm::reflect(ray.direction, payload.worldNormal + microfacetAngle);
 	}
 
-	return glm::vec4(accumulation, 1.0f);
+	return glm::vec4(pathAccumulation, 1.0f);
 }
 
 Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {

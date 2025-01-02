@@ -7,7 +7,7 @@ class Camera {
 public:
 	Camera(glm::f32 verticalFOV, glm::f32 nearClip, glm::f32 farClip);
 
-	void OnUpdate(glm::f32 ts);
+	bool OnUpdate(glm::f32 ts);
 	void OnResize(glm::u32 width, glm::u32 height);
 
 	[[nodiscard]] const glm::mat4& GetProjection() const { return mProjection; }
