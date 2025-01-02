@@ -1,4 +1,4 @@
-project "WalnutApp"
+project "LumiTracer"
    kind "ConsoleApp"
    language "C++"
    cppdialect "C++17"
@@ -23,8 +23,8 @@ project "WalnutApp"
        "Walnut"
    }
 
-   targetdir ("../bin/" .. outputdir .. "/%{prj.name}")
-   objdir ("../bin-int/" .. outputdir .. "/%{prj.name}")
+   targetdir ("../bin/" .. outputdir .. "/bin/%{prj.name}")
+   objdir ("../bin/" .. outputdir .. "/int/%{prj.name}")
 
    filter "system:windows"
       systemversion "latest"
