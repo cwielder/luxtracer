@@ -5,6 +5,7 @@
 #include "Walnut/Random.h"
 
 #include <iostream>
+#include <execution>
 
 namespace {
 	static glm::u32 convertToRGBA(const glm::vec4& color) {
@@ -46,6 +47,17 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		mFinalImageData = new glm::u32[viewport.x * viewport.y];
 		delete[] mAccumulationData;
 		mAccumulationData = new glm::vec4[viewport.x * viewport.y];
+
+		mHorizIter.resize(viewport.x);
+		mVertIter.resize(viewport.y);
+
+		for (std::uint_fast32_t i = 0; i < viewport.x; i++) {
+			mHorizIter[i] = i;
+		}
+
+		for (std::uint_fast32_t i = 0; i < viewport.y; i++) {
+			mVertIter[i] = i;
+		}
 	}
 
 	std::cout << "Shading " << viewport.x * viewport.y << " pixels" << std::endl;
@@ -54,10 +66,8 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		std::memset(mAccumulationData, 0, viewport.x * viewport.y * sizeof(glm::vec4));
 	}
 
-	using i_t = std::int_fast32_t;
-	#pragma omp parallel for schedule(dynamic, 1) num_threads(8)
-	for (i_t y = 0; y < static_cast<i_t>(viewport.y); y++) {
-		for (i_t x = 0; x < static_cast<i_t>(viewport.x); x++) {
+	std::for_each(std::execution::par, mVertIter.begin(), mVertIter.end(), [this, viewport](const glm::u32 y) {
+		std::for_each(mHorizIter.begin(), mHorizIter.end(), [this, y, viewport](const glm::u32 x) {
 			glm::vec4 color = this->PerPixel(x, y);
 
 			const glm::u32 pixelIndex = x + y * viewport.x;
@@ -68,8 +78,8 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 
 			color = glm::clamp(mAccumulationData[pixelIndex] / static_cast<glm::f32>(mAccumulationFrames), { 0.0f }, { 1.0f });
 			mFinalImageData[pixelIndex] = convertToRGBA(color);
-		}
-	}
+		});
+	});
 
 	mFinalImage->SetData(mFinalImageData);
 
@@ -79,7 +89,7 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 	mActiveCamera = nullptr;
 }
 
-glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_t y) {
+glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_t y) const {
 	Ray ray = {
 		.origin = mActiveCamera->GetPosition(),
 		.direction = mActiveCamera->GetRayDirections()[x + y * mActiveCamera->GetViewport().x]
@@ -116,7 +126,7 @@ glm::vec4 Renderer::PerPixel(const std::uint_fast32_t x, const std::uint_fast32_
 	return glm::vec4(pathAccumulation, 1.0f);
 }
 
-Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {
+Renderer::HitPayload Renderer::TraceRay(const Ray& ray) const {
 	// (bx^2 + by^2)t^2 + (2(axbx + ayby))t + (ax^2 + ay^2 - r^2) = 0
 	// a = ray origin
 	// b = ray direction
@@ -163,7 +173,7 @@ Renderer::HitPayload Renderer::TraceRay(const Ray& ray) {
 	}
 }
 
-Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, const glm::f32 hitDistance, const glm::u32 objectIndex) {
+Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, const glm::f32 hitDistance, const glm::u32 objectIndex) const {
 	const auto& sphere = mActiveScene->spheres[objectIndex];
 
 	glm::vec3 origin = ray.origin - sphere.position;
@@ -179,7 +189,7 @@ Renderer::HitPayload Renderer::ClosestHit(const Ray& ray, const glm::f32 hitDist
 	};
 }
 
-Renderer::HitPayload Renderer::Miss() {
+Renderer::HitPayload Renderer::Miss() const {
 	return {
 		.hitDistance = -1.0f
 	};

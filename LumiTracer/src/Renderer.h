@@ -4,6 +4,7 @@
 #include "glm/glm.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "Ray.h"
 
@@ -29,12 +30,12 @@ private:
         glm::u32 objectIndex;
     };
 
-    glm::vec4 PerPixel(const std::uint_fast32_t x, const std::uint_fast32_t y);
+    glm::vec4 PerPixel(const std::uint_fast32_t x, const std::uint_fast32_t y) const;
 
-    HitPayload TraceRay(const Ray& ray);
+    HitPayload TraceRay(const Ray& ray) const;
 
-    HitPayload ClosestHit(const Ray& ray, const glm::f32 hitDistance, const glm::u32 objectIndex);
-    HitPayload Miss();
+    HitPayload ClosestHit(const Ray& ray, const glm::f32 hitDistance, const glm::u32 objectIndex) const;
+    HitPayload Miss() const;
 
 private:
     const Scene* mActiveScene;
@@ -43,4 +44,5 @@ private:
     glm::u32* mFinalImageData;
     glm::vec4* mAccumulationData;
     glm::u32 mAccumulationFrames;
+    std::vector<glm::u32> mHorizIter, mVertIter;
 };
