@@ -12,14 +12,15 @@
 #include <memory>
 #include <iostream>
 
+#include "Renderer.h"
+
 class MainLayer : public Walnut::Layer {
 public:
 	MainLayer()
 		: Walnut::Layer()
 		, mViewport()
-		, mImage()
-		, mImageData(nullptr)
 		, mLastRenderTime(-1.0f)
+		, mRenderer()
 	{
 		extern void UIStyle();
 		UIStyle();
@@ -48,8 +49,8 @@ public:
 			mViewport.x = static_cast<glm::u32>(ImGui::GetContentRegionAvail().x);
 			mViewport.y = static_cast<glm::u32>(ImGui::GetContentRegionAvail().y);
 
-			if (mImage) {
-				ImGui::Image(mImage->GetDescriptorSet(), { static_cast<glm::f32>(mImage->GetWidth()), static_cast<glm::f32>(mImage->GetHeight()) });
+			if (mRenderer.GetFinalImage()) {
+				ImGui::Image(mRenderer.GetFinalImage()->GetDescriptorSet(), { static_cast<glm::f32>(mViewport.x), static_cast<glm::f32>(mViewport.y) }, { 0, 1 }, { 1, 0 });
 			}
 		} ImGui::End(); ImGui::PopStyleVar();
 	}
@@ -57,26 +58,15 @@ public:
 	void RenderImage() {
 		Walnut::Timer timer;
 
-		if (!mImage || mViewport.x != mImage->GetWidth() || mViewport.y != mImage->GetHeight()) {
-			mImage = std::make_shared<Walnut::Image>(mViewport.x, mViewport.y, Walnut::ImageFormat::RGBA);
-			delete[] mImageData;
-			mImageData = new glm::u32[mViewport.x * mViewport.y];
-		}
-
-		for (glm::u32 i = 0; i < mViewport.x * mViewport.y; i++) {
-			mImageData[i] = Walnut::Random::UInt() | 0xFF000000;
-		}
-
-		mImage->SetData(mImageData);
+		mRenderer.Render(mViewport);
 
 		mLastRenderTime = timer.ElapsedMillis();
 	}
 	
 private:
 	glm::u32vec2 mViewport;
-	std::shared_ptr<Walnut::Image> mImage;
-	glm::u32* mImageData;
 	glm::f32 mLastRenderTime;
+	Renderer mRenderer;
 };
 
 Walnut::Application* Walnut::CreateApplication(int argc, char** argv) {
