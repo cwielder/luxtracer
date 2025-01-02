@@ -18,6 +18,8 @@ public:
 	[[nodiscard]] const glm::vec3& GetPosition() const { return mPosition; }
 	[[nodiscard]] const glm::vec3& GetDirection() const { return mForwardDirection; }
 
+	[[nodiscard]] glm::u32vec2 GetViewport() const { return { mViewportWidth, mViewportHeight }; }
+
 	[[nodiscard]] const std::vector<glm::vec3>& GetRayDirections() const { return mRayDirections; }
 
 	[[nodiscard]] glm::f32 GetRotationSpeed();
