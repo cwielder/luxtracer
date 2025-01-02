@@ -7,9 +7,6 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
 #include <memory>
 #include <iostream>
 
@@ -30,21 +27,30 @@ public:
 		extern void UIStyle();
 		UIStyle();
 
-		SetWindowPos(GetConsoleWindow(), 0, 3832, 566, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-		ShowWindow(GetConsoleWindow(), SW_SHOWMAXIMIZED);
-
 		mCamera.SetSensitivity(0.004f);
 
 		mScene.materials.push_back({
 			.albedo = glm::vec3(0.0f),
-			.roughness = 1.0f,
-			.metallic = 0.0f
+			.roughness = 0.5f,
+			.metallic = 0.0f,
+			.emissiveColor = glm::vec3(0.0f),
+			.emissiveStrength = 0.0f
 		});
 
 		mScene.materials.push_back({
 			.albedo = glm::vec3(1.0f, 0.0f, 0.0f),
 			.roughness = 1.0f,
-			.metallic = 0.0f
+			.metallic = 0.0f,
+			.emissiveColor = glm::vec3(0.0f),
+			.emissiveStrength = 0.0f
+		});
+
+		mScene.materials.push_back({
+			.albedo = glm::vec3(0.0f),
+			.roughness = 0.0f,
+			.metallic = 0.0f,
+			.emissiveColor = glm::vec3(1.0f, 0.0f, 0.0f),
+			.emissiveStrength = 1.0f
 		});
 
 		mScene.spheres.push_back({
@@ -57,6 +63,12 @@ public:
 			.position = glm::vec3(2.0f, -0.5f, -5.0f),
 			.radius = 0.75f,
 			.materialIndex = 1
+		});
+
+		mScene.spheres.push_back({
+			.position = glm::vec3(-2.0f, -0.5f, -5.0f),
+			.radius = 0.75f,
+			.materialIndex = 2
 		});
 	}
 
@@ -74,13 +86,26 @@ public:
 				ImGui::Text("Frametime: %fms", mLastRenderTime);
 			}
 
-			ImGui::Text("Accumulation: %i frames", mRenderer.GetAccumulationFrames());
+			static bool accumulate = false;
+			ImGui::Checkbox("Accumulate", &accumulate);
 			ImGui::SameLine();
 			if (ImGui::Button("Reset")) {
 				mRenderer.ResetAccumulationFrames();
 			}
+			ImGui::SameLine();
+			ImGui::Text("Accumulation: %i frames", mRenderer.GetAccumulationFrames());
+			if (accumulate) {
+				mRenderer.GetFlags() |= Renderer::Flags::Accumulate;
+			} else {
+				mRenderer.GetFlags() &= ~Renderer::Flags::Accumulate;
+			}
 
 			ImGui::Text("Viewport: %i pixels", mViewport.x * mViewport.y);
+
+			static int bounceCount = 10;
+			ImGui::SliderInt("Ray bounces", &bounceCount, 0, 10);
+			mRenderer.SetMaxBounces(bounceCount);
+
 		} ImGui::End();
 
 		if (ImGui::Begin("Scene")) {
@@ -110,6 +135,8 @@ public:
 				ImGui::ColorEdit3("Albedo", glm::value_ptr(material.albedo));
 				ImGui::SliderFloat("Roughness", &material.roughness, 0.0f, 1.0f);
 				ImGui::SliderFloat("Metallic", &material.metallic, 0.0f, 1.0f);
+				ImGui::ColorEdit3("Emissive Color", glm::value_ptr(material.emissiveColor));
+				ImGui::SliderFloat("Emissive Strength", &material.emissiveStrength, 0.0f, 10.0f);
 
 				if (i != mScene.materials.size() - 1) {
 					ImGui::Separator();

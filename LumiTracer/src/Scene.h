@@ -8,6 +8,8 @@ struct Material {
     glm::vec3 albedo;
     glm::f32 roughness;
     glm::f32 metallic;
+    glm::vec3 emissiveColor;
+    glm::f32 emissiveStrength;
 };
 
 struct Sphere {

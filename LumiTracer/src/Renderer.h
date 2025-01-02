@@ -14,6 +14,23 @@ struct Scene;
 
 class Renderer {
 public:
+    enum class Flags {
+        Accumulate = 1 << 0
+    };
+
+    friend glm::u32 operator&(const glm::u32 lhs, const Flags rhs) {
+        return lhs & static_cast<glm::u32>(rhs);
+    }
+
+    friend glm::u32 operator~(const Flags rhs) {
+        return ~static_cast<glm::u32>(rhs);
+    }
+
+    friend glm::u32 operator|=(glm::u32& lhs, const Flags rhs) {
+        return lhs |= static_cast<glm::u32>(rhs);
+    }
+
+public:
     Renderer();
 
     void Render(const Scene& scene, const Camera& camera);
@@ -22,6 +39,10 @@ public:
 
     void ResetAccumulationFrames() { mAccumulationFrames = 1; }
     [[nodiscard]] glm::u32 GetAccumulationFrames() const { return mAccumulationFrames; }
+
+    void SetMaxBounces(const int count) { mMaxBounces = count; }
+
+    [[nodiscard]] glm::u32& GetFlags() { return mFlags; }
 
 private:
     struct HitPayload {
@@ -47,4 +68,6 @@ private:
     glm::u32 mAccumulationFrames;
     CounterIterator mHorizIterBegin, mHorizIterEnd;
     CounterIterator mVertIterBegin, mVertIterEnd;
+    int mMaxBounces;
+    glm::u32 mFlags;
 };

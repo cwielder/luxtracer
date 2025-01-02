@@ -42,6 +42,7 @@ Renderer::Renderer()
 	, mFinalImageData(nullptr)
 	, mAccumulationData(nullptr)
 	, mAccumulationFrames(1)
+	, mMaxBounces(1)
 { }
 
 void Renderer::Render(const Scene& scene, const Camera& camera) {
@@ -94,7 +95,8 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 
 	mFinalImage->SetData(mFinalImageData);
 
-	mAccumulationFrames++;
+	if (mFlags & Flags::Accumulate)
+		mAccumulationFrames++;
 
 	mActiveScene = nullptr;
 	mActiveCamera = nullptr;
@@ -108,37 +110,31 @@ glm::vec4 Renderer::PerPixel(const glm::u32 x, const glm::u32 y) const {
 	
 	glm::u32 seed = (x + y * mActiveCamera->GetViewport().x) * mAccumulationFrames;
 
-	glm::vec3 pathAccumulation = glm::vec3(0.0f);
-	glm::f32 multiplier = 1.0f;
+	glm::vec3 light = glm::vec3(0.0f);
+	glm::vec3 contribution = glm::vec3(1.0f);
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < mMaxBounces; i++) {
 		seed += i;
 
 		Renderer::HitPayload payload = TraceRay(ray);
-		if (payload.hitDistance < 0.0f) {
-			glm::vec3 skyColor = glm::vec3(0.6f, 0.7f, 0.9f);
-			pathAccumulation += skyColor * multiplier;
+		if (payload.hitDistance > 0.0f) {
+			const Sphere& sphere = mActiveScene->spheres[payload.objectIndex];
+			const Material& material = mActiveScene->materials[sphere.materialIndex];
+
+			const glm::vec3 randomAngle = randV3Unit(seed);
+			const glm::vec3 microfacetAngle = material.roughness * (randomAngle * glm::sign(glm::dot(payload.worldNormal, randomAngle)));
+
+			ray.origin = payload.worldPosition + payload.worldNormal * 0.0001f;
+			ray.direction = glm::reflect(ray.direction, payload.worldNormal + microfacetAngle);
+
+			light += material.emissiveColor * material.emissiveStrength * contribution;
+			contribution *= material.albedo;
+		} else {
 			break;
 		}
-
-		const glm::vec3 lightDir = glm::normalize(glm::vec3(-1, -1, -1));
-		glm::f32 lightIntensity = glm::max(glm::dot(payload.worldNormal, -lightDir), 0.0f); // == cos(angle)
-
-		const Sphere& sphere = mActiveScene->spheres[payload.objectIndex];
-		const Material& material = mActiveScene->materials[sphere.materialIndex];
-		glm::vec3 sphereColor = material.albedo;
-		sphereColor *= lightIntensity;
-		pathAccumulation += sphereColor * multiplier;
-
-		multiplier *= 0.7f;
-
-		const glm::vec3 microfacetAngle = material.roughness * randV3(seed, -0.5f, 0.5f);
-
-		ray.origin = payload.worldPosition + payload.worldNormal * 0.0001f;
-		ray.direction = glm::reflect(ray.direction, payload.worldNormal + microfacetAngle);
 	}
 
-	return glm::vec4(pathAccumulation, 1.0f);
+	return glm::vec4(light, 1.0f);
 }
 
 Renderer::HitPayload Renderer::TraceRay(const Ray& ray) const {
