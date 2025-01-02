@@ -36,13 +36,13 @@ public:
 		mCamera.SetSensitivity(0.004f);
 
 		mScene.materials.push_back({
-			.albedo = glm::vec3(1, 1, 1),
+			.albedo = glm::vec3(0.0f),
 			.roughness = 1.0f,
 			.metallic = 0.0f
 		});
 
 		mScene.materials.push_back({
-			.albedo = glm::vec3(1, 0.5f, 0.5f),
+			.albedo = glm::vec3(1.0f, 0.0f, 0.0f),
 			.roughness = 1.0f,
 			.metallic = 0.0f
 		});
@@ -75,11 +75,12 @@ public:
 			}
 
 			ImGui::Text("Accumulation: %i frames", mRenderer.GetAccumulationFrames());
-
 			ImGui::SameLine();
 			if (ImGui::Button("Reset")) {
 				mRenderer.ResetAccumulationFrames();
 			}
+
+			ImGui::Text("Viewport: %i pixels", mViewport.x * mViewport.y);
 		} ImGui::End();
 
 		if (ImGui::Begin("Scene")) {
@@ -135,7 +136,7 @@ public:
 	void RenderImage() {
 		Walnut::Timer timer;
 
-		mCamera.OnResize(mViewport.x, mViewport.y);
+		mCamera.Resize(mViewport.x, mViewport.y);
 		mRenderer.Render(mScene, mCamera);
 
 		mLastRenderTime = timer.ElapsedMillis();

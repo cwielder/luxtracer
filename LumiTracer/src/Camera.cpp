@@ -76,7 +76,7 @@ bool Camera::OnUpdate(glm::f32 ts) {
 	return moved;
 }
 
-void Camera::OnResize(glm::u32 width, glm::u32 height) {
+void Camera::Resize(glm::u32 width, glm::u32 height) {
 	if (width == mViewportWidth && height == mViewportHeight)
 		return;
 

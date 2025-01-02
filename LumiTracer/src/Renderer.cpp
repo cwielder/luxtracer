@@ -4,7 +4,6 @@
 
 #include "Walnut/Random.h"
 
-#include <iostream>
 #include <execution>
 
 namespace {
@@ -70,9 +69,9 @@ void Renderer::Render(const Scene& scene, const Camera& camera) {
 		mHorizIterEnd = CounterIterator(viewport.x);
 		mVertIterBegin = CounterIterator(0);
 		mVertIterEnd = CounterIterator(viewport.y);
-	}
 
-	std::cout << "Shading " << viewport.x * viewport.y << " pixels" << std::endl;
+		this->ResetAccumulationFrames();
+	}
 
 	if (mAccumulationFrames == 1) {
 		std::memset(mAccumulationData, 0, viewport.x * viewport.y * sizeof(glm::vec4));
