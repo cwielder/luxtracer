@@ -33,6 +33,18 @@ namespace {
 	static glm::vec3 randV3Unit(glm::u32& seed) {
 		return glm::normalize(randV3(seed, -1.0f, 1.0f));
 	}
+
+	static glm::f32 lerp(const glm::f32 a, const glm::f32 b, const glm::f32 t) {
+		return (1.0f - t) * a + t * b;
+	}
+
+	static glm::vec3 lerp(const glm::vec3 a, const glm::vec3 b, const glm::f32 t) {
+		return {
+			lerp(a.x, b.x, t),
+			lerp(a.y, b.y, t),
+			lerp(a.z, b.z, t)
+		};
+	}
 }
 
 Renderer::Renderer()
@@ -43,6 +55,7 @@ Renderer::Renderer()
 	, mAccumulationData(nullptr)
 	, mAccumulationFrames(1)
 	, mMaxBounces(1)
+	, mFlags(0)
 { }
 
 void Renderer::Render(const Scene& scene, const Camera& camera) {
@@ -122,13 +135,17 @@ glm::vec4 Renderer::PerPixel(const glm::u32 x, const glm::u32 y) const {
 			const Material& material = mActiveScene->materials[sphere.materialIndex];
 
 			const glm::vec3 randomAngle = randV3Unit(seed);
-			const glm::vec3 microfacetAngle = material.roughness * (randomAngle * glm::sign(glm::dot(payload.worldNormal, randomAngle)));
+			
+			const glm::vec3 diffuseDir = glm::normalize(payload.worldNormal + randomAngle);
+			const glm::vec3 specularDir = glm::reflect(ray.direction, payload.worldNormal);
+
+			const bool specular = material.metallic >= randF32(seed);
 
 			ray.origin = payload.worldPosition + payload.worldNormal * 0.0001f;
-			ray.direction = glm::reflect(ray.direction, payload.worldNormal + microfacetAngle);
+			ray.direction = lerp(specularDir, diffuseDir, material.roughness * !specular);
 
 			light += material.emissiveColor * material.emissiveStrength * contribution;
-			contribution *= material.albedo;
+			contribution *= lerp(material.albedo, glm::vec3(1.0f), specular);
 		} else {
 			break;
 		}

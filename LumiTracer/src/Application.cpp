@@ -86,6 +86,8 @@ public:
 				ImGui::Text("Frametime: %fms", mLastRenderTime);
 			}
 
+			ImGui::Text("Viewport: %i pixels", mViewport.x * mViewport.y);
+
 			static bool accumulate = false;
 			ImGui::Checkbox("Accumulate", &accumulate);
 			ImGui::SameLine();
@@ -100,10 +102,8 @@ public:
 				mRenderer.GetFlags() &= ~Renderer::Flags::Accumulate;
 			}
 
-			ImGui::Text("Viewport: %i pixels", mViewport.x * mViewport.y);
-
 			static int bounceCount = 10;
-			ImGui::SliderInt("Ray bounces", &bounceCount, 0, 10);
+			ImGui::SliderInt("Ray bounces", &bounceCount, 0, 30);
 			mRenderer.SetMaxBounces(bounceCount);
 
 		} ImGui::End();
