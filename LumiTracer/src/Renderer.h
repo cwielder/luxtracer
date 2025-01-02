@@ -14,7 +14,7 @@ public:
     [[nodiscard]] std::shared_ptr<Walnut::Image> GetFinalImage() { return mFinalImage; }
 
 private:
-    glm::u32 GetPixelColor(const glm::vec2 coord);
+    glm::vec4 PixelColor(const glm::vec2 coord);
 
     std::shared_ptr<Walnut::Image> mFinalImage;
     glm::u32* mFinalImageData;
