@@ -13,6 +13,7 @@
 #include <iostream>
 
 #include "Renderer.h"
+#include "Camera.h"
 
 class MainLayer : public Walnut::Layer {
 public:
@@ -20,6 +21,7 @@ public:
 		: Walnut::Layer()
 		, mViewport()
 		, mLastRenderTime(-1.0f)
+		, mCamera(45.0f, 0.1f, 200.0f)
 		, mRenderer()
 	{
 		extern void UIStyle();
@@ -27,18 +29,18 @@ public:
 
 		SetWindowPos(GetConsoleWindow(), 0, 3832, 566, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 		ShowWindow(GetConsoleWindow(), SW_SHOWMAXIMIZED);
+
+		mCamera.SetSensitivity(0.004f);
+	}
+
+	void OnUpdate(glm::f32 ts) override {
+		mCamera.OnUpdate(ts);
 	}
 
 	void OnUIRender() override {
-		if (ImGui::Begin("Settings")) {
-			if (ImGui::Button("Render")) {
-				std::cout << "Starting render..." << std::endl;
-				
-				this->RenderImage();
-				
-				std::cout << "Done!" << std::endl;
-			}
+		this->RenderImage();
 
+		if (ImGui::Begin("Settings")) {
 			if (mLastRenderTime != -1.0f) {
 				ImGui::Text("Frametime: %fms", mLastRenderTime);
 			}
@@ -58,7 +60,8 @@ public:
 	void RenderImage() {
 		Walnut::Timer timer;
 
-		mRenderer.Render(mViewport);
+		mCamera.OnResize(mViewport.x, mViewport.y);
+		mRenderer.Render(mViewport, mCamera);
 
 		mLastRenderTime = timer.ElapsedMillis();
 	}
@@ -66,6 +69,7 @@ public:
 private:
 	glm::u32vec2 mViewport;
 	glm::f32 mLastRenderTime;
+	Camera mCamera;
 	Renderer mRenderer;
 };
 
