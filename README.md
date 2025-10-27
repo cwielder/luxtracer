@@ -1,4 +1,4 @@
-# lumitracer
+# lux
 software light ray tracer
 
 ![image](https://github.com/user-attachments/assets/b999ecdc-7831-49e1-93ca-99db96df375a)
